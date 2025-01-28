@@ -261,26 +261,76 @@ summary(duck.fit)
 
 ## Same but with glmmTMB.
 library(glmmTMB)
-fity <- glmmTMB(force ~ bone + location + sex + bone:location + bone:sex + (1 | duck.id / bone.id),
-                dispformula = ~ bone, data = duck.df)
-summary(fity)
+library(MuMIn)
+fit.full <- glmmTMB(force ~ (sex + location + screwtype + bone)^3 + (1 | duck.id / bone.id),
+                    dispformula = ~ bone, data = duck.df, na.action = "na.fail")
+d <- dredge(fit.full)
+best.fit <- get.models(d, 1)[[1]]
+summary(best.fit)
+## Fitting the best model from scratch.
+fit <- glmmTMB(force ~ bone + location + sex + bone:location + bone:sex +
+                   (1 | duck.id / bone.id),
+               dispformula = ~ bone, data = duck.df)
+summary(fit)
 
-## Dispersion model
-sim1 <- function(nfac=40, nt=100, facsd=0.1, tsd=0.15, mu=0, residsd=1)
-{
-  dat <- expand.grid(fac=factor(letters[1:nfac]), t=1:nt)
-  n <- nrow(dat)
-  dat$REfac <- rnorm(nfac, sd=facsd)[dat$fac]
-  dat$REt <- rnorm(nt, sd=tsd)[dat$t]
-  dat$x <- rnorm(n, mean=mu, sd=residsd) + dat$REfac + dat$REt
-  dat
+newdata <- expand.grid(location = paste0("L", 1:5),
+                       sex = c("F", "M"),
+                       bone = c("tibiotarsus", "femur"))
+newdata$locationn <- as.numeric(substr(newdata$location, 2, 2))
+newdata$duck.id <- NA
+newdata$bone.id <- NA
+preds <- predict(fit, newdata = newdata, allow.new.levels = TRUE, se.fit = TRUE)
+newdata$locationn[newdata$sex == "F"] <- newdata$locationn[newdata$sex == "F"] - 0.1
+newdata$locationn[newdata$sex == "M"] <- newdata$locationn[newdata$sex == "M"] + 0.1
+orig.df <- duck.df
+orig.df$locationn[orig.df$sex == "F"] <- orig.df$locationn[orig.df$sex == "F"] - 0.1
+orig.df$locationn[orig.df$sex == "M"] <- orig.df$locationn[orig.df$sex == "M"] + 0.1
+
+preds.est <- preds$fit
+preds.se <- preds$se.fit
+preds.lower <- preds.est - qnorm(0.975)*preds.se
+preds.upper <- preds.est + qnorm(0.975)*preds.se
+
+library(RColorBrewer)
+library(tools)
+cols <- brewer.pal(6, name = "Paired")[c(1, 2, 5, 6)]
+opar <- par(mfrow = c(2, 1), mar = c(0, 4, 3, 0) + 0.1)
+## A plot with data and estimates for the average bird and bone.
+for (b in c("tibiotarsus", "femur")){
+    if (b == "femur"){
+        par(mar = c(4, 4, 3, 0) + 0.1)
+    }
+    odf <- orig.df[orig.df$bone == b, ]
+    ndf <- newdata[newdata$bone == b, ]
+    npe <- preds.est[newdata$bone == b]
+    npl <- preds.lower[newdata$bone == b]
+    npu <- preds.upper[newdata$bone == b]
+    plot.new()
+    plot.window(xlim = range(newdata$locationn),
+                ylim = c(min(c(orig.df$force[orig.df$bone == b],
+                               preds.lower[newdata$bone == b])),
+                         max(c(orig.df$force[orig.df$bone == b],
+                               preds.upper[newdata$bone == b]))))
+    box()
+    axis(2)
+    title(ylab = "Force (N)", main = toTitleCase(b))
+    if (b == "femur"){
+        axis(1)
+        title(xlab = "Location")
+    }
+    cols.est <- ifelse(ndf$sex == "F", cols[4], cols[2])
+    cols.data <- ifelse(odf$sex == "F", cols[3], cols[1])
+    points(odf$locationn, odf$force,
+           col = cols.data)
+    points(ndf$locationn, npe, pch = 16, col = cols.est, cex = 1.5)
+    segments(x0 = ndf$locationn, y0 = npl,
+             x1 = ndf$locationn, y1 = npu,
+             col = cols.est, lwd = 2)
+    lines(ndf$locationn[ndf$sex == "F"], npe[ndf$sex == "F"], col = cols[4])
+    lines(ndf$locationn[ndf$sex == "M"], npe[ndf$sex == "M"], col = cols[2])
+    if (b == "tibiotarsus"){
+        legend("topright", legend = c("F", "M"), col = cols[c(4, 2)],
+               lty = c(1, 1), pch = c(16, 16))
+    }
 }
-set.seed(101)
-d1 <- sim1(mu=100, residsd=10)
-d2 <- sim1(mu=200, residsd=5)
-d1$sd <- "ten"
-d2$sd <- "five"
-dat <- rbind(d1, d2)
-m0 <- glmmTMB(x ~ sd + (1|t), dispformula=~sd, data=dat)
-fixef(m0)$disp
-c(log(5), log(10)-log(5)) # expected dispersion model coefficients
+par(opar)
