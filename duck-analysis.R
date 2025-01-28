@@ -3,7 +3,7 @@ library(RColorBrewer)
 duck.df <- read.csv("duck-data.csv")
 duck.df$locationn <- duck.df$location
 duck.df$location <- paste0("L", duck.df$location)
-duck.df$bone.id <- paste0(duck.df$duck.id, duck.df$side)
+duck.df$bone.id <- paste0(duck.df$duck.id, duck.df$side, substr(duck.df$bone, 1, 1))
 
 ## Splitting into femur and tibiotarsus.
 tibio.df <- duck.df[duck.df$bone == "tibiotarsus", ]
@@ -51,6 +51,19 @@ boxplot(force ~ bone.id, data = femur.df)
 boxplot(tibio.df$force ~ tibio.df$location, xlab = "Tibiotarsus location", ylab = "Force")
 ## Location for femur.
 boxplot(femur.df$force ~ femur.df$location, xlab = "Femur location", ylab = "Force")
+
+## Breaking things down by screw type and location.
+boxplot(tibio.df$force ~ tibio.df$screwtype + tibio.df$location)
+abline(v = 2*(1:4) + 0.5)
+
+## Same for femur.
+boxplot(femur.df$force ~ femur.df$screwtype + femur.df$location)
+abline(v = 2*(1:4) + 0.5)
+
+t.test(tibio.df$force[tibio.df$screwtype == "cortex" & tibio.df$location == "L1"],
+       tibio.df$force[tibio.df$screwtype == "locking" & tibio.df$location == "L1"])
+
+
 
 ## Looking at individual duck and location.
 plot.new()
@@ -125,7 +138,7 @@ tibio6.fit <- lmer(force ~ sex + location * screwtype + (1 | duck.id), data = ti
 summary(tibio6.fit)
 anova(tibio6.fit, tibio2.fit)
 
-## Trying out a screw with location interaction.
+## Trying out a sex with location interaction.
 tibio7.fit <- lmer(force ~ sex * location + screwtype + (1 | duck.id), data = tibio.df)
 summary(tibio7.fit)
 anova(tibio7.fit, tibio2.fit)
@@ -228,3 +241,46 @@ legend("topright", legend = c("Sex: F; Screw: Coretex", "Sex: F; Screw: Locking"
                             "Sex: M; Screw: Coretex", "Sex: M; Screw: Locking"),
        lty = 1, pch = 16, col = cols)
     
+## Same thing in nlme.
+library(nlme)
+library(MuMIn)
+full.fit <- lme(force ~ (sex + location + screwtype + bone)^3, random = ~ 1 | duck.id / bone.id,
+                weights = varIdent(form = ~ 1 | bone), data = duck.df, method = "ML")
+d <- dredge(full.fit)
+fit <- get.models(d, 1)[[1]]
+summary(fit)
+
+fitx <- lme(force ~ bone + location + sex + bone:location + bone:sex, random = ~ 1 | duck.id / bone.id,
+           weights = varIdent(form = ~ 1 | bone), data = duck.df, method = "ML")
+summary(fitx)
+
+summary(duck.fit)
+anova(duck.fit)
+summary(duck.fit)
+
+
+## Same but with glmmTMB.
+library(glmmTMB)
+fity <- glmmTMB(force ~ bone + location + sex + bone:location + bone:sex + (1 | duck.id / bone.id),
+                dispformula = ~ bone, data = duck.df)
+summary(fity)
+
+## Dispersion model
+sim1 <- function(nfac=40, nt=100, facsd=0.1, tsd=0.15, mu=0, residsd=1)
+{
+  dat <- expand.grid(fac=factor(letters[1:nfac]), t=1:nt)
+  n <- nrow(dat)
+  dat$REfac <- rnorm(nfac, sd=facsd)[dat$fac]
+  dat$REt <- rnorm(nt, sd=tsd)[dat$t]
+  dat$x <- rnorm(n, mean=mu, sd=residsd) + dat$REfac + dat$REt
+  dat
+}
+set.seed(101)
+d1 <- sim1(mu=100, residsd=10)
+d2 <- sim1(mu=200, residsd=5)
+d1$sd <- "ten"
+d2$sd <- "five"
+dat <- rbind(d1, d2)
+m0 <- glmmTMB(x ~ sd + (1|t), dispformula=~sd, data=dat)
+fixef(m0)$disp
+c(log(5), log(10)-log(5)) # expected dispersion model coefficients
