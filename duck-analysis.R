@@ -223,7 +223,7 @@ preds.upper <- preds.est + qnorm(0.975)*preds.se
 library(RColorBrewer)
 library(tools)
 cols <- brewer.pal(6, name = "Paired")[c(1, 2, 5, 6)]
-par(mfrow = c(2, 1), mar = c(4, 4, 3, 0) + 0.1)
+par(mfrow = c(1, 2), mar = c(4, 4, 3, 0) + 0.1)
 ## A plot with data and estimates for the average bird and bone.
 for (b in c("tibiotarsus", "femur")){
     odf <- orig.df[orig.df$bone == b, ]
@@ -233,10 +233,10 @@ for (b in c("tibiotarsus", "femur")){
     npu <- preds.upper[newdata$bone == b]
     plot.new()
     plot.window(xlim = range(newdata$locationn),
-                ylim = c(min(c(orig.df$force[orig.df$bone == b],
-                               preds.lower[newdata$bone == b])),
-                         max(c(orig.df$force[orig.df$bone == b],
-                               preds.upper[newdata$bone == b]))))
+                ylim = c(min(c(orig.df$force,
+                               preds.lower)),
+                         max(c(orig.df$force,
+                               preds.upper))))
     box()
     axis(1)
     axis(2)
@@ -280,27 +280,3 @@ abline(h = 0, lty = "dotted")
 title(xlab = "Location", ylab = "Estimated difference between tibiotarsus and femur")
 legend("topright", legend = c("F", "M"), col = cols[c(4, 2)],
        lty = c(1, 1), pch = c(16, 16))
-
-## Same again, but for differences between males and females.
-cis.fem <- cis.tib <- matrix(0, nrow = 5, ncol = 3)
-cis.fem[1, ] <- confint(fit)[7, ]
-cis.tib[1, ] <- confint(fit.bone.relevel)[7, ]
-for (i in 2:5){
-    cis.fem[i, ] <- confint(get(paste0("fit.location", i, ".relevel")))[7, ]
-    cis.tib[i, ] <- confint(get(paste0("fit.bone.location", i, ".relevel")))[7, ]
-}
-plot.new()
-plot.window(xlim = c(1 - 0.1, 5 + 0.1), ylim = c(min(c(cis.fem[, 1], cis.tib[, 1])),
-                                                 max(c(cis.fem[, 2], cis.tib[, 2]))))
-box()
-axis(1)
-axis(2)
-points(1:5 - 0.1, cis.fem[, 3], pch = 16, col = cols[4])
-points(1:5 + 0.1, cis.tib[, 3], pch = 16, col = cols[2])
-segments(x0 = 1:5 - 0.1, y0 = cis.fem[, 1], x1 = 1:5 - 0.1, y1 = cis.fem[, 2], col = cols[4])
-segments(x0 = 1:5 + 0.1, y0 = cis.tib[, 1], x1 = 1:5 + 0.1, y1 = cis.tib[, 2], col = cols[2])
-abline(h = 0, lty = "dotted")
-title(xlab = "Location", ylab = "Estimated difference between males and females")
-legend("topright", legend = c("Femur", "Tibiotarsus"), col = cols[c(4, 2)],
-       lty = c(1, 1), pch = c(16, 16))
-
