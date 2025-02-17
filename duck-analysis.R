@@ -60,6 +60,10 @@ abline(v = 2*(1:4) + 0.5)
 boxplot(femur.df$force ~ femur.df$screwtype + femur.df$location)
 abline(v = 2*(1:4) + 0.5)
 
+## If we conduct a single t-test, we do have a significant difference
+## between coretex and locking in the tibiotarsus location L1. But we
+## shouldn't really be picking individual comparisons to conduct
+## standalone hypothesis tests.
 t.test(tibio.df$force[tibio.df$screwtype == "cortex" & tibio.df$location == "L1"],
        tibio.df$force[tibio.df$screwtype == "locking" & tibio.df$location == "L1"])
 
@@ -254,16 +258,12 @@ fitx <- lme(force ~ bone + location + sex + bone:location + bone:sex, random = ~
            weights = varIdent(form = ~ 1 | bone), data = duck.df, method = "ML")
 summary(fitx)
 
-summary(duck.fit)
-anova(duck.fit)
-summary(duck.fit)
-
-
 ## Same but with glmmTMB.
 library(glmmTMB)
 library(MuMIn)
 fit.full <- glmmTMB(force ~ (sex + location + screwtype + bone)^3 + (1 | duck.id / bone.id),
-                    dispformula = ~ bone, data = duck.df, na.action = "na.fail")
+                    dispformula = ~ bone,
+                    data = duck.df, na.action = "na.fail")
 d <- dredge(fit.full)
 best.fit <- get.models(d, 1)[[1]]
 summary(best.fit)
@@ -272,6 +272,89 @@ fit <- glmmTMB(force ~ bone + location + sex + bone:location + bone:sex +
                    (1 | duck.id / bone.id),
                dispformula = ~ bone, data = duck.df)
 summary(fit)
+## Re-levelling bone type.
+duck.df$bone.relevel <- factor(duck.df$bone, levels = c("tibiotarsus", "femur"))
+fit.bone.relevel <- glmmTMB(force ~ bone.relevel + location + sex + bone.relevel:location +
+                                bone.relevel:sex + (1 | duck.id / bone.id),
+                            dispformula = ~ bone, data = duck.df)
+summary(fit.bone.relevel)
+## Re-levelling sex.
+duck.df$sex.relevel <- factor(duck.df$sex, levels = c("M", "F"))
+fit.sex.relevel <- glmmTMB(force ~ bone + location + sex.relevel + bone:location +
+                                bone:sex.relevel + (1 | duck.id / bone.id),
+                           dispformula = ~ bone, data = duck.df)
+summary(fit.sex.relevel)
+
+## Re-levelling location a bunch of times. First to Location 2.
+duck.df$location.relevel2 <- factor(duck.df$location, levels = paste0("L", 1:5)[c(2, 1, 3, 4, 5)])
+fit.location2.relevel <- glmmTMB(force ~ bone + location.relevel2 + sex +
+                                     bone:location.relevel2 + bone:sex +
+                                     (1 | duck.id / bone.id),
+                                 dispformula = ~ bone, data = duck.df)
+summary(fit.location2.relevel)
+confint(fit.location2.relevel)
+
+## Location 3.
+duck.df$location.relevel3 <- factor(duck.df$location, levels = paste0("L", 1:5)[c(3, 1, 2, 4, 5)])
+fit.location3.relevel <- glmmTMB(force ~ bone + location.relevel3 + sex +
+                                     bone:location.relevel3 + bone:sex +
+                                     (1 | duck.id / bone.id),
+                                 dispformula = ~ bone, data = duck.df)
+summary(fit.location3.relevel)
+confint(fit.location3.relevel)
+## Location 4.
+duck.df$location.relevel4 <- factor(duck.df$location, levels = paste0("L", 1:5)[c(4, 1, 2, 3, 5)])
+fit.location4.relevel <- glmmTMB(force ~ bone + location.relevel4 + sex +
+                                     bone:location.relevel4 + bone:sex +
+                                     (1 | duck.id / bone.id),
+                                 dispformula = ~ bone, data = duck.df)
+summary(fit.location4.relevel)
+confint(fit.location4.relevel)
+## Location 5.
+duck.df$location.relevel5 <- factor(duck.df$location, levels = paste0("L", 1:5)[c(5, 1, 2, 3, 4)])
+fit.location5.relevel <- glmmTMB(force ~ bone + location.relevel5 + sex +
+                                     bone:location.relevel5 + bone:sex +
+                                     (1 | duck.id / bone.id),
+                                 dispformula = ~ bone, data = duck.df)
+summary(fit.location5.relevel)
+confint(fit.location5.relevel)
+
+## Now relevelling location with males as the baseline.
+fit.sex.location2.relevel <-  glmmTMB(force ~ bone + location.relevel2 + sex.relevel +
+                                          bone:location.relevel2 + bone:sex.relevel +
+                                          (1 | duck.id / bone.id),
+                                      dispformula = ~ bone, data = duck.df)
+fit.sex.location3.relevel <-  glmmTMB(force ~ bone + location.relevel3 + sex.relevel +
+                                          bone:location.relevel3 + bone:sex.relevel +
+                                          (1 | duck.id / bone.id),
+                                      dispformula = ~ bone, data = duck.df)
+fit.sex.location4.relevel <-  glmmTMB(force ~ bone + location.relevel4 + sex.relevel +
+                                          bone:location.relevel4 + bone:sex.relevel +
+                                          (1 | duck.id / bone.id),
+                                      dispformula = ~ bone, data = duck.df)
+fit.sex.location5.relevel <-  glmmTMB(force ~ bone + location.relevel5 + sex.relevel +
+                                          bone:location.relevel5 + bone:sex.relevel +
+                                          (1 | duck.id / bone.id),
+                                      dispformula = ~ bone, data = duck.df)
+
+## Now relevelling location with tibiotarsus as the baseline.
+fit.bone.location2.relevel <-  glmmTMB(force ~ bone.relevel + location.relevel2 + sex.relevel +
+                                          bone.relevel:location.relevel2 + bone.relevel:sex.relevel +
+                                          (1 | duck.id / bone.id),
+                                      dispformula = ~ bone, data = duck.df)
+fit.bone.location3.relevel <-  glmmTMB(force ~ bone.relevel + location.relevel3 + sex.relevel +
+                                          bone.relevel:location.relevel3 + bone.relevel:sex.relevel +
+                                          (1 | duck.id / bone.id),
+                                      dispformula = ~ bone, data = duck.df)
+fit.bone.location4.relevel <-  glmmTMB(force ~ bone.relevel + location.relevel4 + sex.relevel +
+                                          bone.relevel:location.relevel4 + bone.relevel:sex.relevel +
+                                          (1 | duck.id / bone.id),
+                                      dispformula = ~ bone, data = duck.df)
+fit.bone.location5.relevel <-  glmmTMB(force ~ bone.relevel + location.relevel5 + sex.relevel +
+                                          bone.relevel:location.relevel5 + bone.relevel:sex.relevel +
+                                          (1 | duck.id / bone.id),
+                                      dispformula = ~ bone, data = duck.df)
+
 
 newdata <- expand.grid(location = paste0("L", 1:5),
                        sex = c("F", "M"),
@@ -294,12 +377,9 @@ preds.upper <- preds.est + qnorm(0.975)*preds.se
 library(RColorBrewer)
 library(tools)
 cols <- brewer.pal(6, name = "Paired")[c(1, 2, 5, 6)]
-opar <- par(mfrow = c(2, 1), mar = c(0, 4, 3, 0) + 0.1)
+par(mfrow = c(2, 1), mar = c(4, 4, 3, 0) + 0.1)
 ## A plot with data and estimates for the average bird and bone.
 for (b in c("tibiotarsus", "femur")){
-    if (b == "femur"){
-        par(mar = c(4, 4, 3, 0) + 0.1)
-    }
     odf <- orig.df[orig.df$bone == b, ]
     ndf <- newdata[newdata$bone == b, ]
     npe <- preds.est[newdata$bone == b]
@@ -312,12 +392,9 @@ for (b in c("tibiotarsus", "femur")){
                          max(c(orig.df$force[orig.df$bone == b],
                                preds.upper[newdata$bone == b]))))
     box()
+    axis(1)
     axis(2)
-    title(ylab = "Force (N)", main = toTitleCase(b))
-    if (b == "femur"){
-        axis(1)
-        title(xlab = "Location")
-    }
+    title(xlab = "Location", ylab = "Force (N)", main = toTitleCase(b))
     cols.est <- ifelse(ndf$sex == "F", cols[4], cols[2])
     cols.data <- ifelse(odf$sex == "F", cols[3], cols[1])
     points(odf$locationn, odf$force,
@@ -333,4 +410,51 @@ for (b in c("tibiotarsus", "femur")){
                lty = c(1, 1), pch = c(16, 16))
     }
 }
-par(opar)
+
+## Making a plot to explore the differences between the tibiotasus and
+## the femur.
+cis.f <- cis.m <- matrix(0, nrow = 5, ncol = 3)
+cis.f[1, ] <- confint(fit)[2, ]
+cis.m[1, ] <- confint(fit.sex.relevel)[2, ]
+for (i in 2:5){
+    cis.f[i, ] <- confint(get(paste0("fit.location", i, ".relevel")))[2, ]
+    cis.m[i, ] <- confint(get(paste0("fit.sex.location", i, ".relevel")))[2, ]
+}
+plot.new()
+plot.window(xlim = c(1 - 0.1, 5 + 0.1), ylim = c(min(c(cis.f[, 1], cis.m[, 1])),
+                                                 max(c(cis.f[, 2], cis.m[, 2]))))
+box()
+axis(1)
+axis(2)
+points(1:5 - 0.1, cis.f[, 3], pch = 16, col = cols[4])
+points(1:5 + 0.1, cis.m[, 3], pch = 16, col = cols[2])
+segments(x0 = 1:5 - 0.1, y0 = cis.f[, 1], x1 = 1:5 - 0.1, y1 = cis.f[, 2], col = cols[4])
+segments(x0 = 1:5 + 0.1, y0 = cis.m[, 1], x1 = 1:5 + 0.1, y1 = cis.m[, 2], col = cols[2])
+abline(h = 0, lty = "dotted")
+title(xlab = "Location", ylab = "Estimated difference between tibiotarsus and femur")
+legend("topright", legend = c("F", "M"), col = cols[c(4, 2)],
+       lty = c(1, 1), pch = c(16, 16))
+
+## Same again, but for differences between males and females.
+cis.fem <- cis.tib <- matrix(0, nrow = 5, ncol = 3)
+cis.fem[1, ] <- confint(fit)[7, ]
+cis.tib[1, ] <- confint(fit.bone.relevel)[7, ]
+for (i in 2:5){
+    cis.fem[i, ] <- confint(get(paste0("fit.location", i, ".relevel")))[7, ]
+    cis.tib[i, ] <- confint(get(paste0("fit.bone.location", i, ".relevel")))[7, ]
+}
+plot.new()
+plot.window(xlim = c(1 - 0.1, 5 + 0.1), ylim = c(min(c(cis.fem[, 1], cis.tib[, 1])),
+                                                 max(c(cis.fem[, 2], cis.tib[, 2]))))
+box()
+axis(1)
+axis(2)
+points(1:5 - 0.1, cis.fem[, 3], pch = 16, col = cols[4])
+points(1:5 + 0.1, cis.tib[, 3], pch = 16, col = cols[2])
+segments(x0 = 1:5 - 0.1, y0 = cis.fem[, 1], x1 = 1:5 - 0.1, y1 = cis.fem[, 2], col = cols[4])
+segments(x0 = 1:5 + 0.1, y0 = cis.tib[, 1], x1 = 1:5 + 0.1, y1 = cis.tib[, 2], col = cols[2])
+abline(h = 0, lty = "dotted")
+title(xlab = "Location", ylab = "Estimated difference between males and females")
+legend("topright", legend = c("Femur", "Tibiotarsus"), col = cols[c(4, 2)],
+       lty = c(1, 1), pch = c(16, 16))
+
