@@ -66,8 +66,9 @@ abline(v = 2*(1:4) + 0.5)
 ## standalone hypothesis tests.
 t.test(tibio.df$force[tibio.df$screwtype == "cortex" & tibio.df$location == "L1"],
        tibio.df$force[tibio.df$screwtype == "locking" & tibio.df$location == "L1"])
-
-
+## Same goes for L5.
+t.test(tibio.df$force[tibio.df$screwtype == "cortex" & tibio.df$location == "L5"],
+       tibio.df$force[tibio.df$screwtype == "locking" & tibio.df$location == "L5"])
 
 ## Looking at individual duck and location.
 plot.new()
@@ -117,6 +118,17 @@ summary(best.fit)
 fit <- glmmTMB(force ~ bone + location + sex + bone:location + bone:sex +
                    (1 | duck.id / bone.id),
                dispformula = ~ bone, data = duck.df)
+fit.with.screw <- glmmTMB(force ~ bone + location + sex + bone:location + bone:sex +
+                              screwtype + (1 | duck.id / bone.id),
+                          dispformula = ~ bone, data = duck.df)
+fit.with.screw.int <- glmmTMB(force ~ bone + location + sex + bone:location + bone:sex +
+                                  screwtype + screwtype:location + screwtype:sex + screwtype:bone +
+                                  (1 | duck.id / bone.id),
+                              dispformula = ~ bone, data = duck.df)
+
+anova(fit, fit.with.screw, fit.with.screw.int)
+anova(fit, fit.with.screw.int)
+
 summary(fit)
 ## Re-levelling bone type.
 duck.df$bone.relevel <- factor(duck.df$bone, levels = c("tibiotarsus", "femur"))
@@ -223,7 +235,7 @@ preds.upper <- preds.est + qnorm(0.975)*preds.se
 library(RColorBrewer)
 library(tools)
 cols <- brewer.pal(6, name = "Paired")[c(1, 2, 5, 6)]
-par(mfrow = c(1, 2), mar = c(4, 4, 3, 0) + 0.1)
+opar <- par(mfrow = c(1, 2), mar = c(4, 4, 3, 0) + 0.1)
 ## A plot with data and estimates for the average bird and bone.
 for (b in c("tibiotarsus", "femur")){
     odf <- orig.df[orig.df$bone == b, ]
@@ -256,6 +268,7 @@ for (b in c("tibiotarsus", "femur")){
                lty = c(1, 1), pch = c(16, 16))
     }
 }
+par(opar)
 
 ## Making a plot to explore the differences between the tibiotasus and
 ## the femur.
