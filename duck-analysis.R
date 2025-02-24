@@ -52,14 +52,6 @@ boxplot(tibio.df$force ~ tibio.df$location, xlab = "Tibiotarsus location", ylab 
 ## Location for femur.
 boxplot(femur.df$force ~ femur.df$location, xlab = "Femur location", ylab = "Force")
 
-## Breaking things down by screw type and location.
-boxplot(tibio.df$force ~ tibio.df$screwtype + tibio.df$location)
-abline(v = 2*(1:4) + 0.5)
-
-## Same for femur.
-boxplot(femur.df$force ~ femur.df$screwtype + femur.df$location)
-abline(v = 2*(1:4) + 0.5)
-
 ## If we conduct a single t-test, we do have a significant difference
 ## between coretex and locking in the tibiotarsus location L1. But we
 ## shouldn't really be picking individual comparisons to conduct
@@ -293,3 +285,22 @@ abline(h = 0, lty = "dotted")
 title(xlab = "Location", ylab = "Estimated difference between tibiotarsus and femur")
 legend("topright", legend = c("F", "M"), col = cols[c(4, 2)],
        lty = c(1, 1), pch = c(16, 16))
+
+## A plot of maximal force by bone, location, and screw type.
+#png(width = 480*2, file = "screw-type.png")
+par(mfrow = c(1, 2), mar = c(4, 4, 3, 0) + 0.1)
+boxplot(tibio.df$force ~ tibio.df$screwtype + tibio.df$location, col = rep(c("grey30", "grey70"), 5),
+        ylab = "Force (N)", axes = FALSE, xlab = "Location", main = "Tibiotarsus")
+box()
+axis(2)
+axis(1, at = 2*(1:5) - 0.5, labels = 1:5)
+abline(v = 2*(1:4) + 0.5)
+legend("topright", legend = c("Cortex", "Locking"), lty = c(1, 1), lwd = 5, col = c("grey30", "grey70"))
+## Same for femur.
+boxplot(femur.df$force ~ femur.df$screwtype + femur.df$location, col = rep(c("grey30", "grey70"), 5),
+        ylab = "Force (N)", axes = FALSE, xlab = "Location", main = "Femur")
+box()
+axis(2)
+axis(1, at = 2*(1:5) - 0.5, labels = 1:5)
+abline(v = 2*(1:4) + 0.5)
+#dev.off()
