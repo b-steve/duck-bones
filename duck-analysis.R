@@ -227,8 +227,9 @@ preds.upper <- preds.est + qnorm(0.975)*preds.se
 library(RColorBrewer)
 library(tools)
 cols <- brewer.pal(6, name = "Paired")[c(1, 2, 5, 6)]
-opar <- par(mfrow = c(1, 2), mar = c(4, 4, 3, 0) + 0.1)
 ## A plot with data and estimates for the average bird and bone.
+png(width = 480*2, file = "duck-plot.png")
+opar <- par(mfrow = c(1, 2), mar = c(4, 4, 3, 0) + 0.1)
 for (b in c("tibiotarsus", "femur")){
     odf <- orig.df[orig.df$bone == b, ]
     ndf <- newdata[newdata$bone == b, ]
@@ -244,7 +245,7 @@ for (b in c("tibiotarsus", "femur")){
     box()
     axis(1)
     axis(2)
-    title(xlab = "Location", ylab = "Force (N)", main = toTitleCase(b))
+    title(xlab = "Location", ylab = "Maximum force (N)", main = toTitleCase(b))
     cols.est <- ifelse(ndf$sex == "F", cols[4], cols[2])
     cols.data <- ifelse(odf$sex == "F", cols[3], cols[1])
     points(odf$locationn, odf$force,
@@ -255,42 +256,33 @@ for (b in c("tibiotarsus", "femur")){
              col = cols.est, lwd = 2)
     lines(ndf$locationn[ndf$sex == "F"], npe[ndf$sex == "F"], col = cols[4])
     lines(ndf$locationn[ndf$sex == "M"], npe[ndf$sex == "M"], col = cols[2])
-    if (b == "tibiotarsus"){
-        legend("topright", legend = c("F", "M"), col = cols[c(4, 2)],
-               lty = c(1, 1), pch = c(16, 16))
-    }
+    legend("topright", legend = c("F", "M"), col = cols[c(4, 2)],
+           lty = c(1, 1), pch = c(16, 16))
 }
 par(opar)
+dev.off()
 
-## Making a plot to explore the differences between the tibiotasus and
-## the femur.
-cis.f <- cis.m <- matrix(0, nrow = 5, ncol = 3)
-cis.f[1, ] <- confint(fit)[2, ]
-cis.m[1, ] <- confint(fit.sex.relevel)[2, ]
+## Making a table with p-values for differences between bone types.
+tab.f <- tab.m <- matrix(0, nrow = 5, ncol = 4)
+tab.f[1, ] <- summary(fit)$coefficients$cond[2, ]
+tab.m[1, ] <- summary(fit.sex.relevel)$coefficients$cond[2, ]
 for (i in 2:5){
-    cis.f[i, ] <- confint(get(paste0("fit.location", i, ".relevel")))[2, ]
-    cis.m[i, ] <- confint(get(paste0("fit.sex.location", i, ".relevel")))[2, ]
+    tab.f[i, ] <- summary(get(paste0("fit.location", i, ".relevel")))$coefficients$cond[2, ]
+    tab.m[i, ] <- summary(get(paste0("fit.sex.location", i, ".relevel")))$coefficients$cond[2, ]
 }
-plot.new()
-plot.window(xlim = c(1 - 0.1, 5 + 0.1), ylim = c(min(c(cis.f[, 1], cis.m[, 1])),
-                                                 max(c(cis.f[, 2], cis.m[, 2]))))
-box()
-axis(1)
-axis(2)
-points(1:5 - 0.1, cis.f[, 3], pch = 16, col = cols[4])
-points(1:5 + 0.1, cis.m[, 3], pch = 16, col = cols[2])
-segments(x0 = 1:5 - 0.1, y0 = cis.f[, 1], x1 = 1:5 - 0.1, y1 = cis.f[, 2], col = cols[4])
-segments(x0 = 1:5 + 0.1, y0 = cis.m[, 1], x1 = 1:5 + 0.1, y1 = cis.m[, 2], col = cols[2])
-abline(h = 0, lty = "dotted")
-title(xlab = "Location", ylab = "Estimated difference between tibiotarsus and femur")
-legend("topright", legend = c("F", "M"), col = cols[c(4, 2)],
-       lty = c(1, 1), pch = c(16, 16))
+tab <- rbind(tab.f, tab.m)
+tab <- data.frame(rep(c("F", "M"), each = 5), rep(1:5, 2), tab)
+colnames(tab) <- c("Sex", "Location", "Estimated difference\n(tibiotarsus - femur)",
+                   "Std Error", "z-value", "p-value")
+tab[, 3:4] <- round(tab[, 3:4], 1)
+tab[, 5:6] <- round(tab[, 5:6], 2)
+write.csv(tab, file = "bone-type-comparison.csv")
 
 ## A plot of maximal force by bone, location, and screw type.
-#png(width = 480*2, file = "screw-type.png")
+png(width = 480*2, file = "screw-type.png")
 par(mfrow = c(1, 2), mar = c(4, 4, 3, 0) + 0.1)
 boxplot(tibio.df$force ~ tibio.df$screwtype + tibio.df$location, col = rep(c("grey30", "grey70"), 5),
-        ylab = "Force (N)", axes = FALSE, xlab = "Location", main = "Tibiotarsus")
+        ylab = "Maximum force (N)", axes = FALSE, xlab = "Location", main = "Tibiotarsus")
 box()
 axis(2)
 axis(1, at = 2*(1:5) - 0.5, labels = 1:5)
@@ -298,9 +290,10 @@ abline(v = 2*(1:4) + 0.5)
 legend("topright", legend = c("Cortex", "Locking"), lty = c(1, 1), lwd = 5, col = c("grey30", "grey70"))
 ## Same for femur.
 boxplot(femur.df$force ~ femur.df$screwtype + femur.df$location, col = rep(c("grey30", "grey70"), 5),
-        ylab = "Force (N)", axes = FALSE, xlab = "Location", main = "Femur")
+        ylab = "Maximum force (N)", axes = FALSE, xlab = "Location", main = "Femur")
 box()
 axis(2)
 axis(1, at = 2*(1:5) - 0.5, labels = 1:5)
 abline(v = 2*(1:4) + 0.5)
-#dev.off()
+legend("topright", legend = c("Cortex", "Locking"), lty = c(1, 1), lwd = 5, col = c("grey30", "grey70"))
+dev.off()
