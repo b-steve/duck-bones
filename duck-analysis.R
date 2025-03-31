@@ -1,299 +1,157 @@
-library(RColorBrewer)
-## Loading in data.
-duck.df <- read.csv("duck-data.csv")
-duck.df$locationn <- duck.df$location
-duck.df$location <- paste0("L", duck.df$location)
-duck.df$bone.id <- paste0(duck.df$duck.id, duck.df$side, substr(duck.df$bone, 1, 1))
-
-## Splitting into femur and tibiotarsus.
-tibio.df <- duck.df[duck.df$bone == "tibiotarsus", ]
-femur.df <- duck.df[duck.df$bone == "femur", ]
-
-## Looking at some plots.
-
-## No obvious differences between screw types. Bone types are similar
-## in mean, but vary different in terms of variance.
-boxplot(tibio.df$force[tibio.df$screwtype == "cortex"],
-        tibio.df$force[tibio.df$screwtype == "locking"],
-        femur.df$force[femur.df$screwtype == "cortex"],
-        femur.df$force[femur.df$screwtype == "locking"],
-        names = rep("", 4))
-mtext(c("Tibiotarsus\nCortex", "Tibiotarsus\nLocking", "Femur\nLocking", "Femur\nCortex"),
-      side = 1, line = 0.5, at = 1:4, padj = 1)
-
-## No obvious differences between screw types. Bone types are similar
-## in mean, but vary different in terms of variance.
-boxplot(tibio.df$force[tibio.df$sex == "F"],
-        tibio.df$force[tibio.df$sex == "M"],
-        femur.df$force[femur.df$sex == "F"],
-        femur.df$force[femur.df$sex == "M"],
-        names = rep("", 4))
-mtext(c("Tibiotarsus\nFemale", "Tibiotarsus\nMale", "Femur\nFemale", "Femur\nMale"),
-      side = 1, line = 0.5, at = 1:4, padj = 1)
-
-## Just for a sanity check, looking at left vs right.
-boxplot(tibio.df$force[tibio.df$side == "L"],
-        tibio.df$force[tibio.df$side == "R"],
-        femur.df$force[femur.df$side == "L"],
-        femur.df$force[femur.df$side == "R"],
-        names = rep("", 4))
-mtext(c("Tibiotarsus\nLeft", "Tibiotarsus\nRight", "Femur\nLeft", "Femur\nRight"),
-      side = 1, line = 0.5, at = 1:4, padj = 1)
-
-## Looking at individual ducks.
-boxplot(force ~ duck.id, data = tibio.df)
-boxplot(force ~ bone.id, data = tibio.df)
-## And individual bones.
-boxplot(force ~ duck.id, data = femur.df)
-boxplot(force ~ bone.id, data = femur.df)
-
-## Location for tibiotarsus.
-boxplot(tibio.df$force ~ tibio.df$location, xlab = "Tibiotarsus location", ylab = "Force")
-## Location for femur.
-boxplot(femur.df$force ~ femur.df$location, xlab = "Femur location", ylab = "Force")
-
-## If we conduct a single t-test, we do have a significant difference
-## between coretex and locking in the tibiotarsus location L1. But we
-## shouldn't really be picking individual comparisons to conduct
-## standalone hypothesis tests.
-t.test(tibio.df$force[tibio.df$screwtype == "cortex" & tibio.df$location == "L1"],
-       tibio.df$force[tibio.df$screwtype == "locking" & tibio.df$location == "L1"])
-## Same goes for L5.
-t.test(tibio.df$force[tibio.df$screwtype == "cortex" & tibio.df$location == "L5"],
-       tibio.df$force[tibio.df$screwtype == "locking" & tibio.df$location == "L5"])
-
-## Looking at individual duck and location.
-plot.new()
-plot.window(xlim = c(1, 5), ylim = range(tibio.df$force))
-box()
-axis(1)
-axis(2)
-title(xlab = "Location", ylab = "Force (N)")
-k <- 1
-for (i in unique(tibio.df$duck.id)){
-    if (i != "s11"){
-        lines(1:5, tibio.df$force[tibio.df$duck.id == i & tibio.df$side == "L"], col = k)
-        if (i != "s19"){
-            lines(1:5, tibio.df$force[tibio.df$duck.id == i & tibio.df$side == "R"], col = k)
-        }
-        k <- k + 1
-    }
-}
-
-
-## Same again for the femur.
-plot.new()
-plot.window(xlim = c(1, 5), ylim = range(femur.df$force))
-box()
-axis(1)
-axis(2)
-title(xlab = "Location", ylab = "Force (N)")
-k <- 1
-for (i in unique(femur.df$duck.id)){
-    if (i != "s3"){
-        lines(1:5, femur.df$force[femur.df$duck.id == i & femur.df$side == "L"], col = k)
-    }
-    lines(1:5, femur.df$force[femur.df$duck.id == i & femur.df$side == "R"], col = k)
-    k <- k + 1
-}
+## Tibiotarsus data.
+tibio.df <- read.csv("tibio-data.csv")
+## Femur ata.
+femur.df <- read.csv("femur-data.csv")
 
 ## Fitting some models with glmmTMB.
-library(glmmTMB)
-library(MuMIn)
-fit.full <- glmmTMB(force ~ (sex + location + screwtype + bone)^3 + (1 | duck.id / bone.id),
-                    dispformula = ~ bone,
-                    data = duck.df, na.action = "na.fail")
-d <- dredge(fit.full)
-best.fit <- get.models(d, 1)[[1]]
-summary(best.fit)
-## Fitting the best model from scratch.
-fit <- glmmTMB(force ~ bone + location + sex + bone:location + bone:sex +
-                   (1 | duck.id / bone.id),
-               dispformula = ~ bone, data = duck.df)
-fit.with.screw <- glmmTMB(force ~ bone + location + sex + bone:location + bone:sex +
-                              screwtype + (1 | duck.id / bone.id),
-                          dispformula = ~ bone, data = duck.df)
-fit.with.screw.int <- glmmTMB(force ~ bone + location + sex + bone:location + bone:sex +
-                                  screwtype + screwtype:location + screwtype:sex + screwtype:bone +
-                                  (1 | duck.id / bone.id),
-                              dispformula = ~ bone, data = duck.df)
+library(lme4)
+library(car)
+library(RLRsim)
 
-anova(fit, fit.with.screw, fit.with.screw.int)
-anova(fit, fit.with.screw.int)
+## For tibiotarsus.
 
-summary(fit)
-## Re-levelling bone type.
-duck.df$bone.relevel <- factor(duck.df$bone, levels = c("tibiotarsus", "femur"))
-fit.bone.relevel <- glmmTMB(force ~ bone.relevel + location + sex + bone.relevel:location +
-                                bone.relevel:sex + (1 | duck.id / bone.id),
-                            dispformula = ~ bone, data = duck.df)
-summary(fit.bone.relevel)
-## Re-levelling sex.
-duck.df$sex.relevel <- factor(duck.df$sex, levels = c("M", "F"))
-fit.sex.relevel <- glmmTMB(force ~ bone + location + sex.relevel + bone:location +
-                                bone:sex.relevel + (1 | duck.id / bone.id),
-                           dispformula = ~ bone, data = duck.df)
-summary(fit.sex.relevel)
+## Full model.
+fit.tibio1 <- lmer(force ~ location*screwtype*sex + (1 | duck.id / bone.id),
+             data = tibio.df)
+## No need for three-way interaction.
+Anova(fit.tibio1)
+## Dropping out three-way interaction.
+fit.tibio2 <- lmer(force ~ (location + screwtype + sex)^2 + (1 | duck.id / bone.id),
+             data = tibio.df)
+Anova(fit.tibio2)
+## No need for two-way interactions.
+fit.tibio3 <- lmer(force ~ location + screwtype + sex + (1 | duck.id / bone.id),
+             data = tibio.df)
+summary(fit.tibio3)
+## Only location is statistically significant.
+Anova(fit.tibio3)
 
-## Re-levelling location a bunch of times. First to Location 2.
-duck.df$location.relevel2 <- factor(duck.df$location, levels = paste0("L", 1:5)[c(2, 1, 3, 4, 5)])
-fit.location2.relevel <- glmmTMB(force ~ bone + location.relevel2 + sex +
-                                     bone:location.relevel2 + bone:sex +
-                                     (1 | duck.id / bone.id),
-                                 dispformula = ~ bone, data = duck.df)
-summary(fit.location2.relevel)
-confint(fit.location2.relevel)
+## Testing random effects.
+m.duck <- lmer(force ~ location + screwtype + sex + (1 | duck.id), data = tibio.df)
+m.bone <- lmer(force ~ location + screwtype + sex + (1 | bone.id), data = tibio.df)
+## Testing for the presence of bone effects.
+exactRLRT(m.bone, fit.tibio3, m.duck)
+## Testing for the presence of duck effects.
+exactRLRT(m.duck, fit.tibio3, m.bone)
 
-## Location 3.
-duck.df$location.relevel3 <- factor(duck.df$location, levels = paste0("L", 1:5)[c(3, 1, 2, 4, 5)])
-fit.location3.relevel <- glmmTMB(force ~ bone + location.relevel3 + sex +
-                                     bone:location.relevel3 + bone:sex +
-                                     (1 | duck.id / bone.id),
-                                 dispformula = ~ bone, data = duck.df)
-summary(fit.location3.relevel)
-confint(fit.location3.relevel)
-## Location 4.
-duck.df$location.relevel4 <- factor(duck.df$location, levels = paste0("L", 1:5)[c(4, 1, 2, 3, 5)])
-fit.location4.relevel <- glmmTMB(force ~ bone + location.relevel4 + sex +
-                                     bone:location.relevel4 + bone:sex +
-                                     (1 | duck.id / bone.id),
-                                 dispformula = ~ bone, data = duck.df)
-summary(fit.location4.relevel)
-confint(fit.location4.relevel)
-## Location 5.
-duck.df$location.relevel5 <- factor(duck.df$location, levels = paste0("L", 1:5)[c(5, 1, 2, 3, 4)])
-fit.location5.relevel <- glmmTMB(force ~ bone + location.relevel5 + sex +
-                                     bone:location.relevel5 + bone:sex +
-                                     (1 | duck.id / bone.id),
-                                 dispformula = ~ bone, data = duck.df)
-summary(fit.location5.relevel)
-confint(fit.location5.relevel)
+## We can drop bone effects to avoid a singular fit and because
+## there isn't evidence they're required, and sex because we don't
+## have evidence for an effect. We leave in screw type because it's
+## our variable of primary interest.
+fit.tibio.final <- lmer(force ~ location + screwtype + (1 | duck.id), data = tibio.df)
+summary(fit.tibio.final)
+Anova(fit.tibio.final)
+      
+## For femur. Everything falls out in the same way as the tibiotarsus
+## data.
 
-## Now relevelling location with males as the baseline.
-fit.sex.location2.relevel <-  glmmTMB(force ~ bone + location.relevel2 + sex.relevel +
-                                          bone:location.relevel2 + bone:sex.relevel +
-                                          (1 | duck.id / bone.id),
-                                      dispformula = ~ bone, data = duck.df)
-fit.sex.location3.relevel <-  glmmTMB(force ~ bone + location.relevel3 + sex.relevel +
-                                          bone:location.relevel3 + bone:sex.relevel +
-                                          (1 | duck.id / bone.id),
-                                      dispformula = ~ bone, data = duck.df)
-fit.sex.location4.relevel <-  glmmTMB(force ~ bone + location.relevel4 + sex.relevel +
-                                          bone:location.relevel4 + bone:sex.relevel +
-                                          (1 | duck.id / bone.id),
-                                      dispformula = ~ bone, data = duck.df)
-fit.sex.location5.relevel <-  glmmTMB(force ~ bone + location.relevel5 + sex.relevel +
-                                          bone:location.relevel5 + bone:sex.relevel +
-                                          (1 | duck.id / bone.id),
-                                      dispformula = ~ bone, data = duck.df)
+## Full model.
+fit.femur1 <- lmer(force ~ location*screwtype*sex + (1 | duck.id / bone.id),
+                   data = femur.df)
+summary(fit.femur1)
+## No need for three-way interaction.
+Anova(fit.femur1)
+## Dropping out three-way interaction.
+fit.femur2 <- lmer(force ~ (location + screwtype + sex)^2 + (1 | duck.id / bone.id),
+             data = femur.df)
+Anova(fit.femur2)
+## No need for two-way interactions.
+fit.femur3 <- lmer(force ~ location + screwtype + sex + (1 | duck.id / bone.id),
+             data = femur.df)
+summary(fit.femur3)
+## Only location is statistically significant.
+Anova(fit.femur3)
 
-## Now relevelling location with tibiotarsus as the baseline.
-fit.bone.location2.relevel <-  glmmTMB(force ~ bone.relevel + location.relevel2 + sex.relevel +
-                                          bone.relevel:location.relevel2 + bone.relevel:sex.relevel +
-                                          (1 | duck.id / bone.id),
-                                      dispformula = ~ bone, data = duck.df)
-fit.bone.location3.relevel <-  glmmTMB(force ~ bone.relevel + location.relevel3 + sex.relevel +
-                                          bone.relevel:location.relevel3 + bone.relevel:sex.relevel +
-                                          (1 | duck.id / bone.id),
-                                      dispformula = ~ bone, data = duck.df)
-fit.bone.location4.relevel <-  glmmTMB(force ~ bone.relevel + location.relevel4 + sex.relevel +
-                                          bone.relevel:location.relevel4 + bone.relevel:sex.relevel +
-                                          (1 | duck.id / bone.id),
-                                      dispformula = ~ bone, data = duck.df)
-fit.bone.location5.relevel <-  glmmTMB(force ~ bone.relevel + location.relevel5 + sex.relevel +
-                                          bone.relevel:location.relevel5 + bone.relevel:sex.relevel +
-                                          (1 | duck.id / bone.id),
-                                      dispformula = ~ bone, data = duck.df)
+## Testing random effects.
+m.duck <- lmer(force ~ location + screwtype + sex + (1 | duck.id), data = femur.df)
+m.bone <- lmer(force ~ location + screwtype + sex + (1 | bone.id), data = femur.df)
+## Testing for the presence of bone effects.
+exactRLRT(m.bone, fit.femur3, m.duck)
+## Testing for the presence of duck effects.
+exactRLRT(m.duck, fit.femur3, m.bone)
 
+## We can drop bone effects to avoid a singular fit and because
+## there isn't evidence they're required, and sex because we don't
+## have evidence for an effect. We leave in screw type because it's
+## our variable of primary interest.
+fit.femur.final <- lmer(force ~ location + screwtype + (1 | duck.id), data = femur.df)
+summary(fit.femur.final)
+Anova(fit.femur.final)
 
+## Making plots of final model estimates and confidence intervals.
 newdata <- expand.grid(location = paste0("L", 1:5),
-                       sex = c("F", "M"),
-                       bone = c("tibiotarsus", "femur"))
+                       screwtype = c("cortex", "locking"))
 newdata$locationn <- as.numeric(substr(newdata$location, 2, 2))
 newdata$duck.id <- NA
 newdata$bone.id <- NA
-preds <- predict(fit, newdata = newdata, allow.new.levels = TRUE, se.fit = TRUE)
-newdata$locationn[newdata$sex == "F"] <- newdata$locationn[newdata$sex == "F"] - 0.1
-newdata$locationn[newdata$sex == "M"] <- newdata$locationn[newdata$sex == "M"] + 0.1
-orig.df <- duck.df
-orig.df$locationn[orig.df$sex == "F"] <- orig.df$locationn[orig.df$sex == "F"] - 0.1
-orig.df$locationn[orig.df$sex == "M"] <- orig.df$locationn[orig.df$sex == "M"] + 0.1
+preds.tibio <- predict(fit.tibio.final, newdata = newdata, re.form = NA, se.fit = TRUE)
+preds.femur <- predict(fit.femur.final, newdata = newdata, re.form = NA, se.fit = TRUE)
+newdata$locationn[newdata$screwtype == "cortex"] <- newdata$locationn[newdata$screwtype == "cortex"] - 0.1
+newdata$locationn[newdata$screwtype == "locking"] <- newdata$locationn[newdata$screwtype == "locking"] + 0.1
+preds.tibio <- predict(fit.tibio.final, newdata = newdata, re.form = NA, se.fit = TRUE)
+orig.tibio.df <- tibio.df
+orig.tibio.df$locationn[orig.tibio.df$screwtype == "cortex"] <-
+    orig.tibio.df$locationn[orig.tibio.df$screwtype == "cortex"] - 0.1
+orig.tibio.df$locationn[orig.tibio.df$screwtype == "locking"] <-
+    orig.tibio.df$locationn[orig.tibio.df$screwtype == "locking"] + 0.1
+orig.femur.df <- femur.df
+orig.femur.df$locationn[orig.femur.df$screwtype == "cortex"] <-
+    orig.femur.df$locationn[orig.femur.df$screwtype == "cortex"] - 0.1
+orig.femur.df$locationn[orig.femur.df$screwtype == "locking"] <-
+    orig.femur.df$locationn[orig.femur.df$screwtype == "locking"] + 0.1
 
-preds.est <- preds$fit
-preds.se <- preds$se.fit
-preds.lower <- preds.est - qnorm(0.975)*preds.se
-preds.upper <- preds.est + qnorm(0.975)*preds.se
+preds.est.tibio <- preds.tibio$fit
+preds.se.tibio <- preds.tibio$se.fit
+preds.lower.tibio <- preds.est.tibio - qnorm(0.975)*preds.se.tibio
+preds.upper.tibio <- preds.est.tibio + qnorm(0.975)*preds.se.tibio
+preds.est.femur <- preds.femur$fit
+preds.se.femur <- preds.femur$se.fit
+preds.lower.femur <- preds.est.femur - qnorm(0.975)*preds.se.femur
+preds.upper.femur <- preds.est.femur + qnorm(0.975)*preds.se.femur
 
 library(RColorBrewer)
 library(tools)
 cols <- brewer.pal(6, name = "Paired")[c(1, 2, 5, 6)]
 ## A plot with data and estimates for the average bird and bone.
-png(width = 480*2, file = "duck-plot.png")
+#png(width = 480*2, file = "duck-plot.png")
 opar <- par(mfrow = c(1, 2), mar = c(4, 4, 3, 0) + 0.1)
 for (b in c("tibiotarsus", "femur")){
-    odf <- orig.df[orig.df$bone == b, ]
-    ndf <- newdata[newdata$bone == b, ]
-    npe <- preds.est[newdata$bone == b]
-    npl <- preds.lower[newdata$bone == b]
-    npu <- preds.upper[newdata$bone == b]
+    if (b == "tibiotarsus"){
+        odf <- orig.tibio.df
+        ndf <- newdata
+        npe <- preds.est.tibio
+        npl <- preds.lower.tibio
+        npu <- preds.upper.tibio
+    }
+    if (b == "femur"){
+        odf <- orig.femur.df
+        ndf <- newdata
+        npe <- preds.est.femur
+        npl <- preds.lower.femur
+        npu <- preds.upper.femur
+    }
     plot.new()
     plot.window(xlim = range(newdata$locationn),
-                ylim = c(min(c(orig.df$force,
-                               preds.lower)),
-                         max(c(orig.df$force,
-                               preds.upper))))
+                ylim = c(min(c(odf$force,
+                               npl)),
+                         max(c(odf$force,
+                               npu))))
     box()
     axis(1)
     axis(2)
     title(xlab = "Location", ylab = "Maximum force (N)", main = toTitleCase(b))
-    cols.est <- ifelse(ndf$sex == "F", cols[4], cols[2])
-    cols.data <- ifelse(odf$sex == "F", cols[3], cols[1])
+    cols.est <- ifelse(ndf$screwtype == "cortex", cols[4], cols[2])
+    cols.data <- ifelse(odf$screwtype == "cortex", cols[3], cols[1])
     points(odf$locationn, odf$force,
            col = cols.data)
     points(ndf$locationn, npe, pch = 16, col = cols.est, cex = 1.5)
     segments(x0 = ndf$locationn, y0 = npl,
              x1 = ndf$locationn, y1 = npu,
              col = cols.est, lwd = 2)
-    lines(ndf$locationn[ndf$sex == "F"], npe[ndf$sex == "F"], col = cols[4])
-    lines(ndf$locationn[ndf$sex == "M"], npe[ndf$sex == "M"], col = cols[2])
-    legend("topright", legend = c("F", "M"), col = cols[c(4, 2)],
+    lines(ndf$locationn[ndf$screwtype == "cortex"], npe[ndf$screwtype == "cortex"], col = cols[4])
+    lines(ndf$locationn[ndf$screwtype == "locking"], npe[ndf$screwtype == "locking"], col = cols[2])
+    legend("topright", legend = c("cortex", "locking"), col = cols[c(4, 2)],
            lty = c(1, 1), pch = c(16, 16))
 }
 par(opar)
-dev.off()
-
-## Making a table with p-values for differences between bone types.
-tab.f <- tab.m <- matrix(0, nrow = 5, ncol = 4)
-tab.f[1, ] <- summary(fit)$coefficients$cond[2, ]
-tab.m[1, ] <- summary(fit.sex.relevel)$coefficients$cond[2, ]
-for (i in 2:5){
-    tab.f[i, ] <- summary(get(paste0("fit.location", i, ".relevel")))$coefficients$cond[2, ]
-    tab.m[i, ] <- summary(get(paste0("fit.sex.location", i, ".relevel")))$coefficients$cond[2, ]
-}
-tab <- rbind(tab.f, tab.m)
-tab <- data.frame(rep(c("F", "M"), each = 5), rep(1:5, 2), tab)
-colnames(tab) <- c("Sex", "Location", "Estimated difference\n(tibiotarsus - femur)",
-                   "Std Error", "z-value", "p-value")
-tab[, 3:4] <- round(tab[, 3:4], 1)
-tab[, 5:6] <- round(tab[, 5:6], 2)
-write.csv(tab, file = "bone-type-comparison.csv")
-
-## A plot of maximal force by bone, location, and screw type.
-png(width = 480*2, file = "screw-type.png")
-par(mfrow = c(1, 2), mar = c(4, 4, 3, 0) + 0.1)
-boxplot(tibio.df$force ~ tibio.df$screwtype + tibio.df$location, col = rep(c("grey30", "grey70"), 5),
-        ylab = "Maximum force (N)", axes = FALSE, xlab = "Location", main = "Tibiotarsus")
-box()
-axis(2)
-axis(1, at = 2*(1:5) - 0.5, labels = 1:5)
-abline(v = 2*(1:4) + 0.5)
-legend("topright", legend = c("Cortex", "Locking"), lty = c(1, 1), lwd = 5, col = c("grey30", "grey70"))
-## Same for femur.
-boxplot(femur.df$force ~ femur.df$screwtype + femur.df$location, col = rep(c("grey30", "grey70"), 5),
-        ylab = "Maximum force (N)", axes = FALSE, xlab = "Location", main = "Femur")
-box()
-axis(2)
-axis(1, at = 2*(1:5) - 0.5, labels = 1:5)
-abline(v = 2*(1:4) + 0.5)
-legend("topright", legend = c("Cortex", "Locking"), lty = c(1, 1), lwd = 5, col = c("grey30", "grey70"))
-dev.off()
+#dev.off()
