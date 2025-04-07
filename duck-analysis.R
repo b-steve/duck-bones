@@ -3,11 +3,9 @@ tibio.df <- read.csv("tibio-data.csv")
 ## Femur ata.
 femur.df <- read.csv("femur-data.csv")
 
-## Loading in required packages. If these aren't installed already,
-## please run the commented install.packages() function, below.
-#install.packages(c("lme4", "car", "RLRsim"))
-library(lme4)
+## Loading in required packages.
 library(car)
+library(lme4)
 library(RLRsim)
 
 ## For tibiotarsus.
