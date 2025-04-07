@@ -3,7 +3,9 @@ tibio.df <- read.csv("tibio-data.csv")
 ## Femur ata.
 femur.df <- read.csv("femur-data.csv")
 
-## Fitting some models with glmmTMB.
+## Loading in required packages. If these aren't installed already,
+## please run the commented install.packages() function, below.
+#install.packages(c("lme4", "car", "RLRsim"))
 library(lme4)
 library(car)
 library(RLRsim)
