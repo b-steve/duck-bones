@@ -113,8 +113,12 @@ library(RColorBrewer)
 library(tools)
 cols <- brewer.pal(6, name = "Paired")[c(1, 2, 5, 6)]
 ## A plot with data and estimates for the average bird and bone.
-#png(width = 480*2, file = "duck-plot.png")
-opar <- par(mfrow = c(1, 2), mar = c(4, 4, 3, 0) + 0.1)
+scale <- 10
+pw <- 480*2*scale
+ph <- 480*scale
+pcex <- scale
+png(width = pw, height = ph, file = "duck-plot.png")
+opar <- par(mfrow = c(1, 2), mar = c(4, 4, 3, 0) + 0.1, cex = pcex, lwd = scale)
 for (b in c("tibiotarsus", "femur")){
     if (b == "tibiotarsus"){
         odf <- orig.tibio.df
@@ -147,11 +151,11 @@ for (b in c("tibiotarsus", "femur")){
     points(ndf$locationn, npe, pch = 16, col = cols.est, cex = 1.5)
     segments(x0 = ndf$locationn, y0 = npl,
              x1 = ndf$locationn, y1 = npu,
-             col = cols.est, lwd = 2)
-    lines(ndf$locationn[ndf$screwtype == "cortex"], npe[ndf$screwtype == "cortex"], col = cols[4])
-    lines(ndf$locationn[ndf$screwtype == "locking"], npe[ndf$screwtype == "locking"], col = cols[2])
+             col = cols.est, lwd = 2*scale)
+    lines(ndf$locationn[ndf$screwtype == "cortex"], npe[ndf$screwtype == "cortex"], col = cols[4], lwd = scale)
+    lines(ndf$locationn[ndf$screwtype == "locking"], npe[ndf$screwtype == "locking"], col = cols[2], lwd = scale)
     legend("topright", legend = c("cortex", "locking"), col = cols[c(4, 2)],
            lty = c(1, 1), pch = c(16, 16))
 }
 par(opar)
-#dev.off()
+dev.off()
