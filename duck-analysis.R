@@ -41,7 +41,9 @@ exactRLRT(m.duck, fit.tibio3, m.bone)
 fit.tibio.final <- lmer(force ~ location + screwtype + (1 | duck.id), data = tibio.df)
 summary(fit.tibio.final)
 Anova(fit.tibio.final)
-      
+## Test for duck effect in the final model.
+exactRLRT(fit.tibio.final)
+
 ## For femur. Everything falls out in the same way as the tibiotarsus
 ## data.
 
@@ -70,13 +72,15 @@ exactRLRT(m.bone, fit.femur3, m.duck)
 ## Testing for the presence of duck effects.
 exactRLRT(m.duck, fit.femur3, m.bone)
 
-## We can drop bone effects to avoid a singular fit and because
+## We can drop bone random effects to avoid a singular fit and because
 ## there isn't evidence they're required, and sex because we don't
 ## have evidence for an effect. We leave in screw type because it's
 ## our variable of primary interest.
 fit.femur.final <- lmer(force ~ location + screwtype + (1 | duck.id), data = femur.df)
 summary(fit.femur.final)
 Anova(fit.femur.final)
+## Test for duck effect in the final model.
+exactRLRT(fit.femur.final)
 
 ## Making plots of final model estimates and confidence intervals.
 newdata <- expand.grid(location = paste0("L", 1:5),
