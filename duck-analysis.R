@@ -104,23 +104,23 @@ qqline(residuals(fit.femur.final))
 
 ## Making plots of final model estimates and confidence intervals.
 newdata <- expand.grid(location = paste0("L", 1:5),
-                       screwtype = c("cortex", "locking"))
+                       screwtype = c("cortical", "locking"))
 newdata$locationn <- as.numeric(substr(newdata$location, 2, 2))
 newdata$duck.id <- NA
 newdata$bone.id <- NA
 preds.tibio <- predict(fit.tibio.final, newdata = newdata, re.form = NA, se.fit = TRUE)
 preds.femur <- predict(fit.femur.final, newdata = newdata, re.form = NA, se.fit = TRUE)
-newdata$locationn[newdata$screwtype == "cortex"] <- newdata$locationn[newdata$screwtype == "cortex"] - 0.1
+newdata$locationn[newdata$screwtype == "cortical"] <- newdata$locationn[newdata$screwtype == "cortical"] - 0.1
 newdata$locationn[newdata$screwtype == "locking"] <- newdata$locationn[newdata$screwtype == "locking"] + 0.1
 preds.tibio <- predict(fit.tibio.final, newdata = newdata, re.form = NA, se.fit = TRUE)
 orig.tibio.df <- tibio.df
-orig.tibio.df$locationn[orig.tibio.df$screwtype == "cortex"] <-
-    orig.tibio.df$locationn[orig.tibio.df$screwtype == "cortex"] - 0.1
+orig.tibio.df$locationn[orig.tibio.df$screwtype == "cortical"] <-
+    orig.tibio.df$locationn[orig.tibio.df$screwtype == "cortical"] - 0.1
 orig.tibio.df$locationn[orig.tibio.df$screwtype == "locking"] <-
     orig.tibio.df$locationn[orig.tibio.df$screwtype == "locking"] + 0.1
 orig.femur.df <- femur.df
-orig.femur.df$locationn[orig.femur.df$screwtype == "cortex"] <-
-    orig.femur.df$locationn[orig.femur.df$screwtype == "cortex"] - 0.1
+orig.femur.df$locationn[orig.femur.df$screwtype == "cortical"] <-
+    orig.femur.df$locationn[orig.femur.df$screwtype == "cortical"] - 0.1
 orig.femur.df$locationn[orig.femur.df$screwtype == "locking"] <-
     orig.femur.df$locationn[orig.femur.df$screwtype == "locking"] + 0.1
 
@@ -171,17 +171,17 @@ for (b in c("tibiotarsus", "femur")){
     axis(1)
     axis(2)
     title(xlab = "Location", ylab = "Maximum force (N)", main = toTitleCase(b))
-    cols.est <- ifelse(ndf$screwtype == "cortex", cols[4], cols[2])
-    cols.data <- ifelse(odf$screwtype == "cortex", cols[3], cols[1])
+    cols.est <- ifelse(ndf$screwtype == "cortical", cols[4], cols[2])
+    cols.data <- ifelse(odf$screwtype == "cortical", cols[3], cols[1])
     points(odf$locationn, odf$force,
            col = cols.data)
     points(ndf$locationn, npe, pch = 16, col = cols.est, cex = 1.5)
     segments(x0 = ndf$locationn, y0 = npl,
              x1 = ndf$locationn, y1 = npu,
              col = cols.est, lwd = 2*scale)
-    lines(ndf$locationn[ndf$screwtype == "cortex"], npe[ndf$screwtype == "cortex"], col = cols[4], lwd = scale)
+    lines(ndf$locationn[ndf$screwtype == "cortical"], npe[ndf$screwtype == "cortical"], col = cols[4], lwd = scale)
     lines(ndf$locationn[ndf$screwtype == "locking"], npe[ndf$screwtype == "locking"], col = cols[2], lwd = scale)
-    legend("topright", legend = c("cortex", "locking"), col = cols[c(4, 2)],
+    legend("topright", legend = c("cortical", "locking"), col = cols[c(4, 2)],
            lty = c(1, 1), pch = c(16, 16))
 }
 par(opar)
