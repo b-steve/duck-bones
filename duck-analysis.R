@@ -10,25 +10,32 @@ library(RLRsim)
 
 ## For tibiotarsus.
 
+## Constant variance for all models looks slightly better when we do a
+## log-transformation.
+tibio.df$log.force <- log(tibio.df$force)
+
 ## Full model.
-fit.tibio1 <- lmer(force ~ location*screwtype*sex + (1 | duck.id / bone.id),
+fit.tibio1 <- lmer(log.force ~ location*screwtype*sex + (1 | duck.id / bone.id),
              data = tibio.df)
 ## No need for three-way interaction.
 Anova(fit.tibio1)
 ## Dropping out three-way interaction.
-fit.tibio2 <- lmer(force ~ (location + screwtype + sex)^2 + (1 | duck.id / bone.id),
-             data = tibio.df)
+fit.tibio2 <- lmer(log.force ~ (location + screwtype + sex)^2 + (1 | duck.id / bone.id),
+                   data = tibio.df)
 Anova(fit.tibio2)
-## No need for two-way interactions.
-fit.tibio3 <- lmer(force ~ location + screwtype + sex + (1 | duck.id / bone.id),
+## No need for two-way interactions. Dropping these is justified by
+## both p-values and by AIC when you fit all possible models with
+## different combinations of the two-way interactions, code for which
+## isn't presented here to keep things brief.
+fit.tibio3 <- lmer(log.force ~ location + screwtype + sex + (1 | duck.id / bone.id),
              data = tibio.df)
 summary(fit.tibio3)
 ## Only location is statistically significant.
 Anova(fit.tibio3)
 
 ## Testing random effects.
-m.duck <- lmer(force ~ location + screwtype + sex + (1 | duck.id), data = tibio.df)
-m.bone <- lmer(force ~ location + screwtype + sex + (1 | bone.id), data = tibio.df)
+m.duck <- lmer(log.force ~ location + screwtype + sex + (1 | duck.id), data = tibio.df)
+m.bone <- lmer(log.force ~ location + screwtype + sex + (1 | bone.id), data = tibio.df)
 ## Testing for the presence of bone effects.
 exactRLRT(m.bone, fit.tibio3, m.duck)
 ## Testing for the presence of duck effects.
@@ -38,14 +45,21 @@ exactRLRT(m.duck, fit.tibio3, m.bone)
 ## there isn't evidence they're required, and sex because we don't
 ## have evidence for an effect. We leave in screw type because it's
 ## our variable of primary interest.
-fit.tibio.final <- lmer(force ~ location + screwtype + (1 | duck.id), data = tibio.df)
+fit.tibio.final <- lmer(log.force ~ location + screwtype + (1 | duck.id), data = tibio.df)
 summary(fit.tibio.final)
 Anova(fit.tibio.final)
 ## Test for duck effect in the final model.
 exactRLRT(fit.tibio.final)
+## Looking at some residual plots. Constant variance looks fine.
+plot(fit.tibio.final)
+## Residuals look slightly skewed but it's no biggie.
+qqnorm(residuals(fit.tibio.final))
+qqline(residuals(fit.tibio.final))
+
 
 ## For femur. Everything falls out in the same way as the tibiotarsus
-## data.
+## data, except a log-transformation is not required (in fact, makes
+## things worse).
 
 ## Full model.
 fit.femur1 <- lmer(force ~ location*screwtype*sex + (1 | duck.id / bone.id),
@@ -81,6 +95,12 @@ summary(fit.femur.final)
 Anova(fit.femur.final)
 ## Test for duck effect in the final model.
 exactRLRT(fit.femur.final)
+## Residual plot looks fine. A log-transformation makes things worse.
+plot(fit.femur.final)
+## Normality of residuals looks fine. There's extremely sight
+## skewness, but no biggie.
+qqnorm(residuals(fit.femur.final))
+qqline(residuals(fit.femur.final))
 
 ## Making plots of final model estimates and confidence intervals.
 newdata <- expand.grid(location = paste0("L", 1:5),
@@ -104,10 +124,13 @@ orig.femur.df$locationn[orig.femur.df$screwtype == "cortex"] <-
 orig.femur.df$locationn[orig.femur.df$screwtype == "locking"] <-
     orig.femur.df$locationn[orig.femur.df$screwtype == "locking"] + 0.1
 
-preds.est.tibio <- preds.tibio$fit
-preds.se.tibio <- preds.tibio$se.fit
-preds.lower.tibio <- preds.est.tibio - qnorm(0.975)*preds.se.tibio
-preds.upper.tibio <- preds.est.tibio + qnorm(0.975)*preds.se.tibio
+preds.log.est.tibio <- preds.tibio$fit
+preds.est.tibio <- exp(preds.log.est.tibio)
+preds.log.se.tibio <- preds.tibio$se.fit
+preds.log.lower.tibio <- preds.log.est.tibio - qnorm(0.975)*preds.log.se.tibio
+preds.lower.tibio <- exp(preds.log.lower.tibio)
+preds.log.upper.tibio <- preds.log.est.tibio + qnorm(0.975)*preds.log.se.tibio
+preds.upper.tibio <- exp(preds.log.upper.tibio)
 preds.est.femur <- preds.femur$fit
 preds.se.femur <- preds.femur$se.fit
 preds.lower.femur <- preds.est.femur - qnorm(0.975)*preds.se.femur
